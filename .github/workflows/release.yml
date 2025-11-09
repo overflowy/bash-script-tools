@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  releases-matrix:
+    name: Release Go Binary
+    runs-on: ubuntu-latest
+    permissions: write-all
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goarch: arm64
+            goos: windows
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and release
+        uses: wangyoucao577/go-release-action@v1.37
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          goversion: "https://dl.google.com/go/go1.23.0.linux-amd64.tar.gz"
+          binary_name: "bash-script-tools"
+          retry: 10
+          overwrite: true
+          extra_files: LICENSE README.md
