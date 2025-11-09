@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -19,6 +20,9 @@ var (
 	shfmtPath      = getEnvOrDefault("SHFMT_PATH", "shfmt")
 	shellcheckPath = getEnvOrDefault("SHELLCHECK_PATH", "shellcheck")
 )
+
+//go:embed index.html
+var indexHTML string
 
 type ShellcheckResponse struct {
 	HTML        string       `json:"html"`
@@ -59,7 +63,7 @@ func main() {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("index.html"))
+	tmpl := template.Must(template.New("index").Parse(indexHTML))
 	tmpl.Execute(w, nil)
 }
 
