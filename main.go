@@ -60,7 +60,7 @@ func main() {
 	http.HandleFunc("/autofix", handleAutofix)
 	http.HandleFunc("/autofix-ai", handleAutofixAI)
 
-	port := getEnvOrDefault("PORT", "8080")
+	port := getEnvOrDefault("PORT", "8085")
 	log.Printf("Server starting on http://localhost:%s", port)
 	log.Printf("Using shfmt: %s", shfmtPath)
 	log.Printf("Using shellcheck: %s", shellcheckPath)
