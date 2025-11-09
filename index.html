@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bash Script Formatter & Checker</title>
+    <title>Bash Script Formatter & Linter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/mode-sh.min.js"></script>
@@ -27,29 +27,20 @@
       .ace_tooltip {
         white-space: pre-line !important;
       }
-
-      /* Loading spinner */
-      .htmx-request .htmx-indicator {
-        display: inline;
-      }
-
-      .htmx-indicator {
-        display: none;
-      }
     </style>
   </head>
   <body class="bg-background min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
-      <div class="mb-8">
+      <div class="mb-4">
         <h1 class="text-3xl font-semibold mb-2">Bash Script Tools</h1>
-        <p class="text-muted-foreground">Format and check your bash scripts</p>
+        <p class="text-muted-foreground">Format and lint your Bash scripts</p>
       </div>
 
       <div class="space-y-4">
         <!-- Code Editor -->
         <div>
           <label class="block text-sm font-medium mb-2">Script</label>
-          <div id="editor">#!/bin/bash echo "Paste your bash script here..."</div>
+          <div id="editor"></div>
         </div>
 
         <!-- Action Buttons -->
@@ -59,83 +50,32 @@
             class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
           >
             <span>Format</span>
-            <svg
-              id="format-spinner"
-              class="htmx-indicator ml-2 animate-spin h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
           </button>
 
           <button
             onclick="checkCode()"
             class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
           >
-            <span>Shellcheck</span>
-            <svg
-              id="check-spinner"
-              class="htmx-indicator ml-2 animate-spin h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
+            <span>Lint</span>
           </button>
         </div>
 
         <!-- Output Box -->
         <div>
-          <label class="block text-sm font-medium mb-2">ShellCheck Output</label>
+          <label class="block text-sm font-medium mb-2">Lint Output</label>
           <div
             id="output-box"
             class="w-full min-h-[200px] px-4 py-3 bg-black text-zinc-100 border border-zinc-800 rounded-lg overflow-auto text-xs"
           >
-            <div class="text-xs text-zinc-500">Click Shellcheck to see results</div>
+            <div class="text-xs text-zinc-500 font-mono">
+              Paste your script in the editor above then press the Lint button
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="mt-8 pt-6 border-t border-zinc-800">
-        <p class="text-sm text-zinc-500">
-          <strong>Format</strong> uses
-          <code class="px-1 py-0.5 bg-zinc-900 rounded text-xs">shfmt</code> to format your bash
-          script. <strong>Shellcheck</strong> uses
-          <code class="px-1 py-0.5 bg-zinc-900 rounded text-xs">shellcheck</code> to find potential
-          issues.
-        </p>
       </div>
     </div>
 
     <script>
-      // Configure Ace Editor
       ace.config.set("basePath", "https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/");
 
       const editor = ace.edit("editor");
@@ -147,17 +87,8 @@
         highlightGutterLine: true,
       });
 
-      function showSpinner(id) {
-        document.getElementById(id).style.display = "inline";
-      }
-
-      function hideSpinner(id) {
-        document.getElementById(id).style.display = "none";
-      }
-
       async function formatCode() {
         const code = editor.getValue();
-        showSpinner("format-spinner");
 
         try {
           const response = await fetch("/format", {
@@ -172,8 +103,6 @@
           editor.moveCursorToPosition(cursor);
         } catch (error) {
           console.error("Format error:", error);
-        } finally {
-          hideSpinner("format-spinner");
         }
       }
 
@@ -184,7 +113,6 @@
 
       async function checkCode() {
         const code = editor.getValue();
-        showSpinner("check-spinner");
         editor.session.clearAnnotations();
 
         try {
@@ -198,7 +126,6 @@
           document.getElementById("output-box").innerHTML = result.html;
 
           // Add click handlers to line numbers
-          // Find corresponding annotation for column position
           document.querySelectorAll(".line-link").forEach((link) => {
             link.addEventListener("click", (e) => {
               e.preventDefault();
@@ -216,9 +143,7 @@
         } catch (error) {
           console.error("Shellcheck error:", error);
           document.getElementById("output-box").innerHTML =
-            '<div class="text-sm text-red-600">Error running shellcheck</div>';
-        } finally {
-          hideSpinner("check-spinner");
+            '<div class="text-xs text-red-600 font-mono">Error running ShellCheck</div>';
         }
       }
     </script>
