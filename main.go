@@ -248,5 +248,5 @@ func formatShellcheckHTML(output string) string {
 	// Color line numbers (now just "Line X:")
 	formatted = regexp.MustCompile(`(?m)^Line (\d+):`).ReplaceAllString(formatted, `<span class="text-cyan-400">Line $1:</span>`)
 
-	return fmt.Sprintf(`<pre class="text-sm whitespace-pre-wrap font-mono">%s</pre>`, formatted)
+	return fmt.Sprintf(`<pre class="text-xs whitespace-pre-wrap font-mono">%s</pre>`, formatted)
 }
