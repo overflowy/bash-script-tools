@@ -2,6 +2,8 @@
 
 A web-based bash script formatter and linter with AI-powered autofix.
 
+https://github.com/user-attachments/assets/b086c905-5e0d-45f7-b124-ad78d3cdac85
+
 ## Features
 
 - **Format**: Format bash scripts using `shfmt`
