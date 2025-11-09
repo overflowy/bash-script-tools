@@ -19,6 +19,9 @@ import (
 var (
 	shfmtPath      = getEnvOrDefault("SHFMT_PATH", "shfmt")
 	shellcheckPath = getEnvOrDefault("SHELLCHECK_PATH", "shellcheck")
+	groqAPIKey     = os.Getenv("GROQ_API_KEY")
+	groqModelID    = getEnvOrDefault("GROQ_MODEL_ID", "openai/gpt-oss-120b")
+	groqAPIURL     = getEnvOrDefault("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
 )
 
 //go:embed index.html
@@ -55,11 +58,15 @@ func main() {
 	http.HandleFunc("/format", handleFormat)
 	http.HandleFunc("/shellcheck", handleShellcheck)
 	http.HandleFunc("/autofix", handleAutofix)
+	http.HandleFunc("/autofix-ai", handleAutofixAI)
 
 	port := getEnvOrDefault("PORT", "8080")
 	log.Printf("Server starting on http://localhost:%s", port)
 	log.Printf("Using shfmt: %s", shfmtPath)
 	log.Printf("Using shellcheck: %s", shellcheckPath)
+	if groqAPIKey != "" {
+		log.Printf("AI autofix enabled with model: %s", groqModelID)
+	}
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -278,6 +285,171 @@ func handleAutofix(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(fixed)
+}
+
+type GroqRequest struct {
+	Model          string                 `json:"model"`
+	Temperature    float64                `json:"temperature"`
+	Messages       []GroqMessage          `json:"messages"`
+	ResponseFormat map[string]interface{} `json:"response_format"`
+}
+
+type GroqMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type GroqResponse struct {
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
+}
+
+type FixedCodeResponse struct {
+	FixedCode string `json:"fixed_code"`
+}
+
+func handleAutofixAI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if groqAPIKey == "" {
+		log.Printf("GROQ_API_KEY not set")
+		http.Error(w, "AI autofix not configured", http.StatusInternalServerError)
+		return
+	}
+
+	code := r.FormValue("code")
+	if code == "" {
+		w.Write([]byte(code))
+		return
+	}
+
+	// Create temporary file for shellcheck
+	tmpFile := filepath.Join(os.TempDir(), "script.sh")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		log.Printf("autofix-ai error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+	defer os.Remove(tmpFile)
+
+	// Run shellcheck to get issues
+	cmd := exec.Command(shellcheckPath, "-f", "tty", tmpFile)
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Run()
+
+	shellcheckOutput := out.String()
+	if shellcheckOutput == "" {
+		shellcheckOutput = stderr.String()
+	}
+
+	if shellcheckOutput == "" {
+		// No issues to fix
+		w.Write([]byte(code))
+		return
+	}
+
+	// Build prompt for AI
+	prompt := fmt.Sprintf(`Fix all ShellCheck issues in the following bash script. Return ONLY the fixed code without any explanations, markdown formatting, or code blocks.
+
+ShellCheck Issues:
+%s
+
+Original Script:
+%s`, shellcheckOutput, code)
+
+	// Prepare Groq API request
+	reqBody := GroqRequest{
+		Model:       groqModelID,
+		Temperature: 0,
+		Messages: []GroqMessage{
+			{
+				Role:    "system",
+				Content: "You are a bash script fixing assistant. Return only the fixed code without any markdown formatting or explanations.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+		ResponseFormat: map[string]interface{}{
+			"type": "json_schema",
+			"json_schema": map[string]interface{}{
+				"name": "fixed_script",
+				"schema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"fixed_code": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"required": []string{"fixed_code"},
+				},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		log.Printf("JSON marshal error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+
+	// Call Groq API
+	req, err := http.NewRequest("POST", groqAPIURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("Request creation error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+groqAPIKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("API request error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("API error: %d", resp.StatusCode)
+		w.Write([]byte(code))
+		return
+	}
+
+	var groqResp GroqResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
+		log.Printf("JSON decode error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+
+	if len(groqResp.Choices) == 0 {
+		log.Printf("No choices in response")
+		w.Write([]byte(code))
+		return
+	}
+
+	var fixedResp FixedCodeResponse
+	if err := json.Unmarshal([]byte(groqResp.Choices[0].Message.Content), &fixedResp); err != nil {
+		log.Printf("Fixed code parse error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+
+	w.Write([]byte(fixedResp.FixedCode))
 }
 
 func formatShellcheckHTML(output string) string {
