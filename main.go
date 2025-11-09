@@ -240,10 +240,10 @@ func formatShellcheckHTML(output string) string {
 	})
 
 	// Color-code severity levels
-	formatted = regexp.MustCompile(`\(error\)`).ReplaceAllString(formatted, `<span class="text-red-400">(error)</span>`)
-	formatted = regexp.MustCompile(`\(warning\)`).ReplaceAllString(formatted, `<span class="text-yellow-400">(warning)</span>`)
-	formatted = regexp.MustCompile(`\(info\)`).ReplaceAllString(formatted, `<span class="text-blue-400">(info)</span>`)
-	formatted = regexp.MustCompile(`\(style\)`).ReplaceAllString(formatted, `<span class="text-green-400">(style)</span>`)
+	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(error\):.+)$`).ReplaceAllString(formatted, `<span class="text-red-400">$1</span>`)
+	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(warning\):.+)$`).ReplaceAllString(formatted, `<span class="text-yellow-400">$1</span>`)
+	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(info\):.+)$`).ReplaceAllString(formatted, `<span class="text-blue-400">$1</span>`)
+	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(style\):.+)$`).ReplaceAllString(formatted, `<span class="text-green-400">$1</span>`)
 
 	// Color line numbers (now just "Line X:")
 	formatted = regexp.MustCompile(`(?m)^Line (\d+):`).ReplaceAllString(formatted, `<span class="text-cyan-400">Line $1:</span>`)
