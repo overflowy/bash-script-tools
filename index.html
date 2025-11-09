@@ -96,6 +96,8 @@
     <script>
       ace.config.set("basePath", "https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/");
 
+      const STORAGE_KEY = "bash-script-tools-content";
+
       const editor = ace.edit("editor");
       editor.session.setMode("ace/mode/sh");
       editor.setOptions({
@@ -103,6 +105,17 @@
         showPrintMargin: false,
         showGutter: true,
         highlightGutterLine: true,
+      });
+
+      // Load content from localStorage
+      const savedContent = localStorage.getItem(STORAGE_KEY);
+      if (savedContent) {
+        editor.setValue(savedContent, -1);
+      }
+
+      // Save content to localStorage on change
+      editor.session.on("change", function () {
+        localStorage.setItem(STORAGE_KEY, editor.getValue());
       });
 
       function setButtonsDisabled(disabled) {
