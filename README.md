@@ -2,7 +2,7 @@
 
 A web-based bash script formatter and linter with AI-powered autofix.
 
-https://github.com/user-attachments/assets/b086c905-5e0d-45f7-b124-ad78d3cdac85
+https://github.com/user-attachments/assets/fd71cf96-f690-439c-9ebb-8f3844137dfc
 
 ## Features
 
