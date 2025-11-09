@@ -46,29 +46,33 @@
         <!-- Action Buttons -->
         <div class="flex gap-3">
           <button
+            id="format-btn"
             onclick="formatCode()"
-            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
+            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>Format</span>
           </button>
 
           <button
+            id="lint-btn"
             onclick="checkCode()"
-            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
+            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>Lint</span>
           </button>
 
           <button
+            id="autofix-btn"
             onclick="autofixCode()"
-            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
+            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>Autofix</span>
           </button>
 
           <button
+            id="autofix-ai-btn"
             onclick="autofixAICode()"
-            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
+            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>Autofix (AI)</span>
           </button>
@@ -101,8 +105,16 @@
         highlightGutterLine: true,
       });
 
+      function setButtonsDisabled(disabled) {
+        document.getElementById("format-btn").disabled = disabled;
+        document.getElementById("lint-btn").disabled = disabled;
+        document.getElementById("autofix-btn").disabled = disabled;
+        document.getElementById("autofix-ai-btn").disabled = disabled;
+      }
+
       async function formatCode() {
         const code = editor.getValue();
+        setButtonsDisabled(true);
 
         try {
           const response = await fetch("/format", {
@@ -117,6 +129,8 @@
           editor.moveCursorToPosition(cursor);
         } catch (error) {
           console.error("Format error:", error);
+        } finally {
+          setButtonsDisabled(false);
         }
       }
 
@@ -128,6 +142,7 @@
       async function checkCode() {
         const code = editor.getValue();
         editor.session.clearAnnotations();
+        setButtonsDisabled(true);
 
         try {
           const response = await fetch("/shellcheck", {
@@ -158,11 +173,14 @@
           console.error("Shellcheck error:", error);
           document.getElementById("output-box").innerHTML =
             '<div class="text-xs text-red-600 font-mono">Error running ShellCheck</div>';
+        } finally {
+          setButtonsDisabled(false);
         }
       }
 
       async function autofixCode() {
         const code = editor.getValue();
+        setButtonsDisabled(true);
 
         try {
           const response = await fetch("/autofix", {
@@ -180,11 +198,13 @@
           await checkCode();
         } catch (error) {
           console.error("Autofix error:", error);
+          setButtonsDisabled(false);
         }
       }
 
       async function autofixAICode() {
         const code = editor.getValue();
+        setButtonsDisabled(true);
 
         try {
           const response = await fetch("/autofix-ai", {
@@ -195,6 +215,7 @@
 
           if (!response.ok) {
             console.error("AI Autofix error:", response.status);
+            setButtonsDisabled(false);
             return;
           }
 
@@ -207,6 +228,7 @@
           await checkCode();
         } catch (error) {
           console.error("AI Autofix error:", error);
+          setButtonsDisabled(false);
         }
       }
     </script>
