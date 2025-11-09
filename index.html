@@ -177,6 +177,11 @@
         }
       }
 
+      function jumpToLine(lineNum, column) {
+        editor.gotoLine(lineNum, column || 0, true);
+        editor.focus();
+      }
+
       async function checkCode() {
         const code = editor.getValue();
         showSpinner("check-spinner");
@@ -191,6 +196,19 @@
 
           const result = await response.json();
           document.getElementById("output-box").innerHTML = result.html;
+
+          // Add click handlers to line numbers
+          // Find corresponding annotation for column position
+          document.querySelectorAll(".line-link").forEach((link) => {
+            link.addEventListener("click", (e) => {
+              e.preventDefault();
+              const lineNum = parseInt(link.dataset.line);
+              // Find annotation for this line to get column
+              const annotation = result.annotations?.find((a) => a.row === lineNum - 1);
+              const column = annotation ? annotation.column : 0;
+              jumpToLine(lineNum, column);
+            });
+          });
 
           if (result.annotations && result.annotations.length > 0) {
             editor.session.setAnnotations(result.annotations);

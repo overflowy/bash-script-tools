@@ -36,6 +36,7 @@ type LineError struct {
 	Code     string
 	Severity string
 	Message  string
+	Column   int
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -147,22 +148,31 @@ func parseShellcheckOutput(output string) []Annotation {
 	lines := regexp.MustCompile(`\r?\n`).Split(output, -1)
 	scCodeRegex := regexp.MustCompile(`(SC\d+)\s+\((error|warning|info|style)\):\s*(.+)`)
 	lineRegex := regexp.MustCompile(`\bline\s+(\d+):`)
+	columnRegex := regexp.MustCompile(`^(\s*)\^`)
 
 	var currentLine int
+	var currentColumn int
 	for _, line := range lines {
 		// Extract line number
-		if lineMatch := lineRegex.FindStringSubmatch(line); lineMatch != nil && len(lineMatch) >= 2 {
+		if lineMatch := lineRegex.FindStringSubmatch(line); len(lineMatch) >= 2 {
 			if num, err := strconv.Atoi(lineMatch[1]); err == nil {
 				currentLine = num
+				currentColumn = 0
 			}
 		}
 
+		// Extract column position from ^-- marker
+		if colMatch := columnRegex.FindStringSubmatch(line); len(colMatch) > 1 {
+			currentColumn = len(colMatch[1])
+		}
+
 		// Extract error code and message
-		if scMatch := scCodeRegex.FindStringSubmatch(line); scMatch != nil && currentLine > 0 && len(scMatch) >= 4 {
+		if scMatch := scCodeRegex.FindStringSubmatch(line); currentLine > 0 && len(scMatch) >= 4 {
 			lineErrors[currentLine] = append(lineErrors[currentLine], LineError{
 				Code:     scMatch[1],
 				Severity: scMatch[2],
 				Message:  scMatch[3],
+				Column:   currentColumn,
 			})
 		}
 	}
@@ -175,6 +185,7 @@ func parseShellcheckOutput(output string) []Annotation {
 
 		// Determine annotation type based on most severe error
 		annotationType := "info"
+		column := 0
 		for _, err := range errors {
 			if err.Severity == "error" {
 				annotationType = "error"
@@ -182,6 +193,11 @@ func parseShellcheckOutput(output string) []Annotation {
 			} else if err.Severity == "warning" && annotationType != "error" {
 				annotationType = "warning"
 			}
+		}
+
+		// Use column from first error (they should all be the same for a given line)
+		if len(errors) > 0 {
+			column = errors[0].Column
 		}
 
 		// Build combined error message with one line per issue
@@ -192,7 +208,7 @@ func parseShellcheckOutput(output string) []Annotation {
 
 		annotations = append(annotations, Annotation{
 			Row:    lineNum - 1, // Ace uses 0-based indexing
-			Column: 0,
+			Column: column,
 			Text:   strings.Join(messages, "\n"),
 			Type:   annotationType,
 		})
@@ -245,8 +261,8 @@ func formatShellcheckHTML(output string) string {
 	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(info\):.+)$`).ReplaceAllString(formatted, `<span class="text-blue-400">$1</span>`)
 	formatted = regexp.MustCompile(`(?m)^(.+SC\d+.+\(style\):.+)$`).ReplaceAllString(formatted, `<span class="text-green-400">$1</span>`)
 
-	// Color line numbers (now just "Line X:")
-	formatted = regexp.MustCompile(`(?m)^Line (\d+):`).ReplaceAllString(formatted, `<span class="text-cyan-400">Line $1:</span>`)
+	// Color line numbers and make them clickable (now just "Line X:")
+	formatted = regexp.MustCompile(`(?m)^Line (\d+):`).ReplaceAllString(formatted, `<a href="#" class="line-link text-cyan-400 hover:text-cyan-300 cursor-pointer underline" data-line="$1">Line $1:</a>`)
 
 	return fmt.Sprintf(`<pre class="text-xs whitespace-pre-wrap font-mono">%s</pre>`, formatted)
 }
