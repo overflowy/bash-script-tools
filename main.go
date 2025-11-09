@@ -54,6 +54,7 @@ func main() {
 	http.HandleFunc("/", handleIndex)
 	http.HandleFunc("/format", handleFormat)
 	http.HandleFunc("/shellcheck", handleShellcheck)
+	http.HandleFunc("/autofix", handleAutofix)
 
 	port := getEnvOrDefault("PORT", "8080")
 	log.Printf("Server starting on http://localhost:%s", port)
@@ -219,6 +220,64 @@ func parseShellcheckOutput(output string) []Annotation {
 	}
 
 	return annotations
+}
+
+func handleAutofix(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	code := r.FormValue("code")
+	if code == "" {
+		w.Write([]byte(code))
+		return
+	}
+
+	// Create temporary file for shellcheck
+	tmpFile := filepath.Join(os.TempDir(), "script.sh")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		log.Printf("autofix error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+	defer os.Remove(tmpFile)
+
+	// Run shellcheck with --format=diff to get fixes
+	cmd := exec.Command(shellcheckPath, "-f", "diff", tmpFile)
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Run()
+
+	diff := out.String()
+	if diff == "" {
+		// No fixes available, return original code
+		w.Write([]byte(code))
+		return
+	}
+
+	// Apply the diff using patch
+	patchCmd := exec.Command("patch", tmpFile)
+	patchCmd.Stdin = bytes.NewBufferString(diff)
+	var patchStderr bytes.Buffer
+	patchCmd.Stderr = &patchStderr
+
+	if err := patchCmd.Run(); err != nil {
+		log.Printf("patch error: %v - %s", err, patchStderr.String())
+		w.Write([]byte(code))
+		return
+	}
+
+	// Read the fixed file
+	fixed, err := os.ReadFile(tmpFile)
+	if err != nil {
+		log.Printf("read error: %v", err)
+		w.Write([]byte(code))
+		return
+	}
+
+	w.Write(fixed)
 }
 
 func formatShellcheckHTML(output string) string {

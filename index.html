@@ -58,6 +58,13 @@
           >
             <span>Lint</span>
           </button>
+
+          <button
+            onclick="autofixCode()"
+            class="inline-flex items-center px-4 py-2 bg-zinc-900 text-zinc-100 rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-colors font-medium text-sm border border-zinc-800"
+          >
+            <span>Autofix</span>
+          </button>
         </div>
 
         <!-- Output Box -->
@@ -144,6 +151,28 @@
           console.error("Shellcheck error:", error);
           document.getElementById("output-box").innerHTML =
             '<div class="text-xs text-red-600 font-mono">Error running ShellCheck</div>';
+        }
+      }
+
+      async function autofixCode() {
+        const code = editor.getValue();
+
+        try {
+          const response = await fetch("/autofix", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "code=" + encodeURIComponent(code),
+          });
+
+          const fixedCode = await response.text();
+          const cursor = editor.getCursorPosition();
+          editor.setValue(fixedCode, -1);
+          editor.moveCursorToPosition(cursor);
+
+          // Run shellcheck again to update annotations
+          await checkCode();
+        } catch (error) {
+          console.error("Autofix error:", error);
         }
       }
     </script>
