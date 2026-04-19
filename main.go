@@ -20,7 +20,7 @@ var (
 	shfmtPath      = getEnvOrDefault("SHFMT_PATH", "shfmt")
 	shellcheckPath = getEnvOrDefault("SHELLCHECK_PATH", "shellcheck")
 	groqAPIKey     = os.Getenv("GROQ_API_KEY")
-	groqModelID    = getEnvOrDefault("GROQ_MODEL_ID", "moonshotai/kimi-k2-instruct-0905")
+	groqModelID    = getEnvOrDefault("GROQ_MODEL_ID", "qwen/qwen3-32b")
 	groqAPIURL     = getEnvOrDefault("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
 )
 
