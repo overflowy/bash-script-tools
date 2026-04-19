@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,7 @@ var (
 	shfmtPath      = getEnvOrDefault("SHFMT_PATH", "shfmt")
 	shellcheckPath = getEnvOrDefault("SHELLCHECK_PATH", "shellcheck")
 	groqAPIKey     = os.Getenv("GROQ_API_KEY")
-	groqModelID    = getEnvOrDefault("GROQ_MODEL_ID", "qwen/qwen3-32b")
+	groqModelID    = getEnvOrDefault("GROQ_MODEL_ID", "openai/gpt-oss-120b")
 	groqAPIURL     = getEnvOrDefault("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
 )
 
@@ -424,7 +425,8 @@ Original Script:
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("API error: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("API error: %d %s: %s", resp.StatusCode, resp.Status, string(body))
 		w.Write([]byte(code))
 		return
 	}
