@@ -1,0 +1,15 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  install:
+    desc: Build and install to ~/.local/bin
+    cmds:
+      - mkdir -p {{.HOME}}/.local/bin
+      - go build -o {{.HOME}}/.local/bin/bash-script-tools .
