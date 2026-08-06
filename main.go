@@ -400,6 +400,20 @@ Original Script:
 		return
 	}
 
+	// Merge provider-specific extra_body fields into the request
+	if len(active.ExtraBody) > 0 {
+		var body map[string]any
+		json.Unmarshal(jsonData, &body)
+		for k, v := range active.ExtraBody {
+			body[k] = v
+		}
+		if jsonData, err = json.Marshal(body); err != nil {
+			log.Printf("JSON marshal error: %v", err)
+			w.Write([]byte(code))
+			return
+		}
+	}
+
 	// Call the provider API
 	req, err := http.NewRequest("POST", active.APIURL, bytes.NewBuffer(jsonData))
 	if err != nil {

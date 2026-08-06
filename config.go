@@ -14,6 +14,10 @@ type Provider struct {
 	APIURL string `toml:"api_url"`
 	APIKey string `toml:"api_key"`
 	Model  string `toml:"model"`
+	// ExtraBody is merged into the top level of the chat-completions request
+	// body — the escape hatch for provider-specific parameters (e.g.
+	// DeepSeek's `thinking`) without per-provider code.
+	ExtraBody map[string]any `toml:"extra_body"`
 }
 
 type Config struct {
@@ -33,7 +37,10 @@ var builtinProviders = map[string]Provider{
 	},
 	"deepseek": {
 		APIURL: "https://api.deepseek.com/chat/completions",
-		Model:  "deepseek-chat",
+		Model:  "deepseek-v4-flash",
+		// Thinking mode defaults to enabled and makes autofix take minutes;
+		// Groq rejects this field, hence extra_body rather than ChatRequest.
+		ExtraBody: map[string]any{"thinking": map[string]any{"type": "disabled"}},
 	},
 }
 
@@ -115,6 +122,9 @@ func (c Config) activeProvider() (p Provider, ok bool) {
 	if user.Model != "" {
 		base.Model = user.Model
 	}
+	if len(user.ExtraBody) > 0 {
+		base.ExtraBody = user.ExtraBody
+	}
 	return base, true
 }
 
@@ -133,7 +143,11 @@ api_key = "${GROQ_API_KEY}"
 [providers.deepseek]
 api_key = "${DEEPSEEK_API_KEY}"
 # api_url = "https://api.deepseek.com/chat/completions"
-# model = "deepseek-chat"
+# model = "deepseek-v4-flash"
+# Extra fields merged into the request body. Thinking is disabled by default
+# (it makes autofix take minutes); uncomment to re-enable it:
+# [providers.deepseek.extra_body]
+# thinking = { type = "enabled" }
 `
 
 func runInit() {

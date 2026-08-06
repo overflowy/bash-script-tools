@@ -56,7 +56,17 @@ api_key = "${GROQ_API_KEY}"
 [providers.deepseek]
 api_key = "${DEEPSEEK_API_KEY}"
 # api_url = "https://api.deepseek.com/chat/completions"
-# model = "deepseek-chat"
+# model = "deepseek-v4-flash"
+```
+
+A provider table can also set `extra_body` — fields merged into the
+chat-completions request body, for provider-specific parameters. The built-in
+deepseek defaults use it to disable thinking mode (which would make autofix
+take minutes); re-enable it with:
+
+```toml
+[providers.deepseek.extra_body]
+thinking = { type = "enabled" }
 ```
 
 `groq` and `deepseek` have built-in defaults for `api_url` and `model`, so
